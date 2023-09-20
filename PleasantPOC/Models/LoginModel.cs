@@ -11,12 +11,12 @@ namespace PleasantPOC.Models
 {
     public class LoginModel
     {
-        [FormData("username")]
+        [JsonPropertyName("username")]
         public required string Username { get; set; }
-        [FormData("password")]
+        [JsonPropertyName("password")]
         public required string Password { get; set; }
-        [FormData("grant_type")]
+        [JsonPropertyName("grant_type")]
         public string GrantType { get; set; } = "password";
-        public required string TwoFactorToken { get; set; }
+        public string TwoFactorToken { get; set; } = string.Empty;
     }
 }

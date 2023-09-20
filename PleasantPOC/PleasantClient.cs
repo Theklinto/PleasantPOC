@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace PleasantPOC
@@ -91,8 +92,8 @@ namespace PleasantPOC
             List<KeyValuePair<string, string>> values = new();
             foreach (PropertyInfo property in properties)
             {
-                FormDataAttribute? attribute = property
-                    .GetCustomAttribute<FormDataAttribute>();
+                JsonPropertyNameAttribute? attribute = property
+                    .GetCustomAttribute<JsonPropertyNameAttribute>();
 
                 if (attribute is null)
                     continue;

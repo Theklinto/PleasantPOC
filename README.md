@@ -63,6 +63,7 @@ For the entry to be considered a valid configuration entry, the TemplateFile and
 
 - The paths are relative paths, with the root being where the executable is placed.
 - All keys are case sensitive
+- If identical keys are set in the entry and one or more of the references, the value will be overriden from one of the references. In no particular order.
 
 ## How to use PleasantPOC
 The program is a console application and should be fairly simple to use.

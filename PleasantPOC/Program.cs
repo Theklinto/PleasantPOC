@@ -3,31 +3,6 @@ using System.Text.RegularExpressions;
 using PleasantPOC;
 using PleasantPOC.Models;
 
-static string GetPasswordFromConsole()
-{
-    var pass = string.Empty;
-    ConsoleKey key;
-    do
-    {
-        var keyInfo = Console.ReadKey(intercept: true);
-        key = keyInfo.Key;
-
-        if (key == ConsoleKey.Backspace && pass.Length > 0)
-        {
-            Console.Write("\b \b");
-            pass = pass[0..^1];
-        }
-        else if (!char.IsControl(keyInfo.KeyChar))
-        {
-            Console.Write("*");
-            pass += keyInfo.KeyChar;
-        }
-    } while (key != ConsoleKey.Enter);
-    Console.WriteLine();
-
-    return pass;
-}
-
 PleasantClient client = new();
 
 #region Login details
@@ -36,7 +11,7 @@ PleasantClient client = new();
     Console.Write("Username: ");
     string username = Console.ReadLine() ?? string.Empty;
     Console.Write("Password: ");
-    string password = GetPasswordFromConsole();
+    string password = Utils.GetPasswordFromConsole();
     Console.Write("2FA token: ");
     string token = Console.ReadLine() ?? string.Empty;
     LoginModel loginModel = new()
@@ -126,8 +101,8 @@ Console.WriteLine();
 foreach (Credential credential in credentials)
 {
     Console.WriteLine($"Handeling credential: {credential.Name}");
-    bool templateFound = credential.CustomUserFields.TryGetValue(Utils.TemplateFilePathKey, out string? templateFileRelativePath);
-    bool filePlacementDefined = credential.CustomUserFields.TryGetValue(Utils.FilePathKey, out string? filePlacementRelativePath);
+    bool templateFound = credential.CustomUserFields.TryGetValue(Keys.TemplateFilePath, out string? templateFileRelativePath);
+    bool filePlacementDefined = credential.CustomUserFields.TryGetValue(Keys.FilePath, out string? filePlacementRelativePath);
 
     if (templateFound is false || filePlacementDefined is false
         || string.IsNullOrWhiteSpace(templateFileRelativePath)
@@ -183,3 +158,39 @@ Console.WriteLine("Program done!");
 Console.ResetColor();
 Console.Write("Press any key to exit...");
 Console.Read();
+
+static class Keys
+{
+    public const string TemplateFilePath = "TemplateFile";
+    public const string FilePath = "FilePlacement";
+}
+static partial class Utils
+{
+    [GeneratedRegex("^#.*#$")]
+    public static partial Regex IsValidKeyRegex();
+    public static string GetPasswordFromConsole()
+    {
+        var pass = string.Empty;
+        ConsoleKey key;
+        do
+        {
+            var keyInfo = Console.ReadKey(intercept: true);
+            key = keyInfo.Key;
+
+            if (key == ConsoleKey.Backspace && pass.Length > 0)
+            {
+                Console.Write("\b \b");
+                pass = pass[0..^1];
+            }
+            else if (!char.IsControl(keyInfo.KeyChar))
+            {
+                Console.Write("*");
+                pass += keyInfo.KeyChar;
+            }
+        } while (key != ConsoleKey.Enter);
+        Console.WriteLine();
+
+        return pass;
+    }
+
+}
