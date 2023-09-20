@@ -17,6 +17,6 @@ namespace PleasantPOC.Models
         public required string Password { get; set; }
         [JsonPropertyName("grant_type")]
         public string GrantType { get; set; } = "password";
-        public string TwoFactorToken { get; set; } = string.Empty;
+        public required string TwoFactorToken { get; set; }
     }
 }
