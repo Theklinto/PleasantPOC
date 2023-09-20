@@ -1,0 +1,9 @@
+{
+	"ConnectionStrings": {
+		"Default": "#DefaultConnection#"
+	},
+	"DARSpecService": {
+		"Username": "#DARUsername#",
+		"Password": "#DARPassword#"
+	}
+}

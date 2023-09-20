@@ -1,7 +1,9 @@
 ﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 using PleasantPOC;
 using PleasantPOC.Models;
-string GetPasswordFromConsole()
+
+static string GetPasswordFromConsole()
 {
     var pass = string.Empty;
     ConsoleKey key;
@@ -28,7 +30,7 @@ string GetPasswordFromConsole()
 
 PleasantClient client = new();
 
-#region login details
+#region Login details
 {
     Console.WriteLine("Enter login information for Pleasant");
     Console.Write("Username: ");
@@ -46,7 +48,9 @@ PleasantClient client = new();
     try
     {
         await client.LoginAsync(loginModel);
+        Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("The login was successful");
+        Console.ResetColor();
     }
     catch (Exception ex)
     {
@@ -56,13 +60,16 @@ PleasantClient client = new();
 }
 #endregion
 
+CredentialGroup? selectedEnvironment = null;
 #region Get enviroment
 {
     Console.WriteLine("Fetching available environments...");
-    CredentialGroup credentialGroup;
+    CredentialGroup? credentialGroup;
     try
     {
         credentialGroup = await client.GetEnvironmentsCredentialGroupAsync();
+        if (credentialGroup is null)
+            return;
     }
     catch (Exception ex)
     {
@@ -83,7 +90,7 @@ PleasantClient client = new();
         Console.WriteLine("No available environments was found");
         return;
     }
-    CredentialGroup? selectedEnvironment = null;
+
     while (selectedEnvironment is null)
     {
 
@@ -105,42 +112,74 @@ PleasantClient client = new();
     }
 
     Console.WriteLine();
-    Console.WriteLine($"The following environment was selected: {selectedEnvironment.Name}");
-
+    Console.Write($"The following environment was selected: ");
+    Console.ForegroundColor = ConsoleColor.Magenta;
+    Console.WriteLine(selectedEnvironment.Name);
+    Console.ResetColor();
     Console.WriteLine();
-    Console.WriteLine($"Fetching credentials in {selectedEnvironment.Name}");
-    List<Credential> credentials = await client.GetEnvironmentCredentialsAsync(selectedEnvironment.Id);
-    Console.WriteLine();
-    foreach (Credential credential in credentials)
-    {
-        Console.WriteLine($"Handeling credential: {credential.Name}");
-        bool templateFound = credential.CustomUserFields.TryGetValue("TemplateFile", out string? templateFileRelativePath);
-        bool filePlacementDefined = credential.CustomUserFields.TryGetValue("FilePlacement", out string? filePlacementRelativePath);
-
-        if (templateFound is false || filePlacementDefined is false
-            || string.IsNullOrWhiteSpace(templateFileRelativePath)
-            || string.IsNullOrWhiteSpace(filePlacementRelativePath))
-        {
-            continue;
-        }
-
-        string templatePath = Path.Combine(Directory.GetCurrentDirectory(), templateFileRelativePath);
-        string templateFileAsString = File.ReadAllText(templatePath);
-
-        foreach ((string key, string value) in credential.CustomUserFields)
-        {
-            if (key.StartsWith('#') is false || key.EndsWith('#') is false)
-                continue;
-
-            Console.WriteLine($"\tReplacing key: {key}");
-            templateFileAsString = templateFileAsString.Replace(key, value);
-        }
-
-        string filePlacementPath = Path.Combine(Directory.GetCurrentDirectory(), filePlacementRelativePath);
-        await File.WriteAllTextAsync(filePlacementPath, templateFileAsString);
-    }
-    Console.WriteLine();
-    Console.WriteLine("Program done!");
-    Console.ReadLine();
 }
 #endregion
+
+Console.WriteLine($"Fetching credentials in {selectedEnvironment.Name}");
+List<Credential> credentials = await client.GetEnvironmentCredentialsAsync(selectedEnvironment.Id);
+Console.WriteLine();
+foreach (Credential credential in credentials)
+{
+    Console.WriteLine($"Handeling credential: {credential.Name}");
+    bool templateFound = credential.CustomUserFields.TryGetValue(Utils.TemplateFilePathKey, out string? templateFileRelativePath);
+    bool filePlacementDefined = credential.CustomUserFields.TryGetValue(Utils.FilePathKey, out string? filePlacementRelativePath);
+
+    if (templateFound is false || filePlacementDefined is false
+        || string.IsNullOrWhiteSpace(templateFileRelativePath)
+        || string.IsNullOrWhiteSpace(filePlacementRelativePath))
+    {
+        continue;
+    }
+
+    string templatePath = Path.Combine(Directory.GetCurrentDirectory(), templateFileRelativePath);
+    string templateFileAsString = File.ReadAllText(templatePath);
+
+    //Values on the entry
+    Dictionary<string, string> keyValuePairs = credential.CustomUserFields
+        .Where(x => Utils.IsValidKeyRegex().Match(x.Key).Success)
+        .ToDictionary(x => x.Key, x => x.Value);
+
+    //Find references
+    List<Guid> references = credential.CustomUserFields
+        .Where(x => x.Key.StartsWith("Reference") && Guid.TryParse(x.Value, out _))
+        .Select(x => new Guid(x.Value))
+        .ToList();
+
+    //Get KeyValuePairs from references
+    Console.WriteLine($"\tFound {references.Count} references");
+    foreach (Guid referenceCredentialId in references)
+    {
+        Credential referenceCredential = await client.GetCredentialsAsync(referenceCredentialId);
+        Console.WriteLine($"\t\tFetching values from {referenceCredential.Name}");
+        foreach ((string key, string value) in referenceCredential.CustomUserFields)
+        {
+            if (Utils.IsValidKeyRegex().Match(key).Success is false)
+                continue;
+
+            if (keyValuePairs.ContainsKey(key))
+                keyValuePairs[key] = value;
+            else
+                keyValuePairs.Add(key, value);
+        }
+    }
+
+    foreach ((string key, string value) in keyValuePairs)
+    {
+        Console.WriteLine($"\tReplacing key: {key}");
+        templateFileAsString = templateFileAsString.Replace(key, value);
+    }
+
+    string filePlacementPath = Path.Combine(Directory.GetCurrentDirectory(), filePlacementRelativePath);
+    await File.WriteAllTextAsync(filePlacementPath, templateFileAsString);
+}
+Console.WriteLine();
+Console.ForegroundColor = ConsoleColor.Green;
+Console.WriteLine("Program done!");
+Console.ResetColor();
+Console.Write("Press any key to exit...");
+Console.Read();

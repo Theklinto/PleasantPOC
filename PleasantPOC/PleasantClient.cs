@@ -17,8 +17,7 @@ namespace PleasantPOC
         private readonly HttpClient _httpClient;
         private const string PleasantOTPProvierHeader = "X-Pleasant-OTP-Provider";
         private const string PleasantOTPHeader = "X-Pleasant-OTP";
-        private const string TemplateFilePathKey = "TemplateFile";
-        private const string FilePathKey = "FilePlacement";
+        
         private readonly IConfiguration _config;
         public PleasantClient()
         {
@@ -58,7 +57,7 @@ namespace PleasantPOC
 
         public async Task<CredentialGroup?> GetEnvironmentsCredentialGroupAsync()
         {
-            if (Guid.TryParse(_config["PleasantServer:CredentialGroupId"] ?? string.Empty, out Guid credentialGroupId))
+            if (Guid.TryParse(_config["PleasantServer:EnvironmentsCredentialGroupId"] ?? string.Empty, out Guid credentialGroupId))
                 return await GetCredentialGroupAsync(credentialGroupId);
 
             return null;
@@ -78,6 +77,12 @@ namespace PleasantPOC
             CredentialGroup credentialGroup = await GetCredentialGroupAsync(credentialGroupId);
 
             return credentialGroup.Credentials;
+        }
+
+        public async Task<Credential> GetCredentialsAsync(Guid credentialId)
+        {
+            return await _httpClient.GetFromJsonAsync<Credential>($"api/v6/rest/entries/{credentialId}") ??
+                throw new Exception($"Could not find any entry with the id: {credentialId}");
         }
 
         private static FormUrlEncodedContent FormUrlEncodedContent(object obj)
